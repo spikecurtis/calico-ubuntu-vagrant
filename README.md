@@ -27,34 +27,13 @@ In this example, we will use the following server names and IP addresses.
 
 3) Startup and SSH
 
-There are two "providers" for Vagrant with slightly different instructions.
-Follow one of the following two options:
-
-**VirtualBox Provider**
-
-The VirtualBox provider is the default Vagrant provider. Use this if you are unsure.
+Run this command to bring up the VMs:
 
     vagrant up
+    
+Note for VMWare users: if you want to use VMWare instead of the default VirtualBox provider, you should pass `--provider vmware_workstation` or `--provider vmware_fusion` at this stage.
 
-**VMware Provider**
-
-The VMware provider is a commercial addon from Hashicorp that offers better stability and speed.
-If you use this provider follow these instructions.
-
-VMware Fusion:
-
-    vagrant up --provider vmware_fusion
-
-VMware Workstation:
-
-    vagrant up --provider vmware_workstation
-
-To connect to your servers
-* Linux/Mac OS X
-    * run `vagrant ssh <hostname>`
-* Windows
-    * Follow instructions from https://github.com/nickryand/vagrant-multi-putty
-    * run `vagrant putty <hostname>`
+Note for Windows users: the instructions below assume that you're running on OS X or Linux.  If you're running on Windows, follow [these instructions](https://github.com/nickryand/vagrant-multi-putty) and then substitute `vagrant putty` for `vagrant ssh`.
 
 4) Verify environment
 
@@ -62,19 +41,17 @@ You should now have two Ubuntu servers, each running etcd in a cluster. The serv
 
 At this point, it's worth checking that your servers can ping each other.
 
-From ubuntu-0
+Connect to ubuntu-0 and then check it can ping ubuntu-1:
 
+    vagrant ssh ubuntu-0
     ping 172.17.8.101
 
-From ubuntu-1
+and vice-versa:
 
+    vagrant ssh ubuntu-1
     ping 172.17.8.100
 
-If you see ping failures, the likely culprit is a problem with the VirtualBox network between the VMs.  You should check that each host is connected to the same virtual network adapter in VirtualBox and rebooting the host may also help.  Remember to shut down the VMs with `vagrant halt` before you reboot.
-
-You should also verify each host can access etcd.  The following will return an error if etcd is not available.
-
-    etcdctl ls /
+If you see ping failures, the likely culprit is a problem with the VirtualBox/VMWare network between the VMs.  You should check that each host is connected to the same virtual network adapter in VirtualBox/VMWare.  Rebooting the host may also help.  Remember to gracefully shut down the VMs with `vagrant halt` before you reboot.
 
 ## Starting Calico services<a id="calico-services"></a>
 
@@ -88,11 +65,11 @@ On ubuntu-1
 
     sudo ./calicoctl node --ip=172.17.8.101 --node-image=calico/node:libnetwork
 
-This will start a container. Check they are running
+This will start the calico-node container. Check it is running:
 
     docker ps
 
-You should see output like this on each node
+You should see output like this on each node:
 
     vagrant@ubuntu-1:~$ docker ps -a
     CONTAINER ID        IMAGE                    COMMAND                CREATED             STATUS              PORTS                                            NAMES
