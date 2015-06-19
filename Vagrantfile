@@ -65,7 +65,7 @@ Vagrant.configure(2) do |config|
       host.vm.network :private_network, ip: ip
 
       # download calico and preload the docker images.
-      host.vm.provision :shell, inline: "wget -q https://circle-artifacts.com/gh/Metaswitch/calico-docker/731/artifacts/0/home/ubuntu/calico-docker/dist/calicoctl"
+      host.vm.provision :shell, inline: "wget -q https://circle-artifacts.com/gh/Metaswitch/calico-docker/896/artifacts/0/home/ubuntu/calico-docker/dist/calicoctl"
       host.vm.provision :shell, inline: "chmod +x calicoctl"
       host.vm.provision :shell, inline: "sudo modprobe ip6_tables"
       host.vm.provision :shell, inline: "sudo modprobe xt_set"
@@ -78,11 +78,28 @@ Vagrant.configure(2) do |config|
 
       # Replace docker with an unreleased version.
       filename = "docker"
-      host.vm.provision :shell, inline: "wget https://transfer.sh/PzCye/#{filename} > /dev/null 2>&1"
+      host.vm.provision :shell, inline: "wget https://transfer.sh/XYIPl/#{filename} > /dev/null 2>&1"
       # host.vm.provision :shell, inline: "wget https://master.dockerproject.org/linux/amd64/docker-1.7.0-dev > /dev/null"
       host.vm.provision :shell, inline: "chmod +x #{filename}"
       host.vm.provision :shell, inline: "sudo stop docker"
       host.vm.provision :shell, inline: "sudo cp #{filename} $(which docker)"
+
+      if i == 0
+        # Download consul and start.
+        host.vm.provision :shell, inline: <<-SHELL
+          sudo apt-get install -y unzip
+          curl -L --silent https://dl.bintray.com/mitchellh/consul/0.5.2_linux_amd64.zip -o consul.zip
+          unzip consul.zip
+          chmod +x consul
+          nohup ./consul agent -server -bootstrap-expect 1 -data-dir /tmp/consul -client 172.17.8.100 > consul.log &
+        SHELL
+      end
+
+      # Set Docker to use consul for multihost.
+      host.vm.provision :shell, inline: %Q|echo 'DOCKER_OPTS="-r=true --kv-store=consul:172.17.8.100:8500"' >> dockerdefault|
+      host.vm.provision :shell, inline: "sudo cp dockerdefault /etc/default/docker"
+
+      # Start docker back up.
       host.vm.provision :shell, inline: "sudo start docker"
 
       host.vm.provision :docker do |d|
