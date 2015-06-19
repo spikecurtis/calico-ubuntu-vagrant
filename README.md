@@ -2,23 +2,79 @@
 
 Calico provides IP connectivity between Docker containers on different hosts (as well as on the same host).
 
-*In order to run this example you will need a 2-node Linux cluster with Docker and etcd installed and running.*  You can do one of the following.
-* Set this up yourself, following these instructions: [Manual Cluster Setup](./ManualClusterSetup.md)
-* Use [Calico Ubuntu Vagrant][calico-ubuntu-vagrant] to start a cluster in VMs on your laptop or workstation.
-
-If you want to get started quickly and easily then we recommend just using Vagrant.
-
-If you have difficulty, try the [Troubleshooting Guide](./Troubleshooting.md).
+This example shows Calico with Docker's new, [experimental network driver support](https://github.com/docker/libnetwork).  This is an early prototype and not considered stable.  For a more stable version of Calico's integration with Docker, see [the main project page](https://github.com/Metaswitch/calico-docker) for examples based on Powerstrip.
 
 ### A note about names & addresses
-In this example, we will use the server names and IP addresses from the [Calico Ubuntu Vagrant][calico-ubuntu-vagrant] example.
+In this example, we will use the following server names and IP addresses.
 
 | hostname   | IP address   |
 |------------|--------------|
 | ubuntu-01  | 172.17.8.100 |
 | ubuntu-02  | 172.17.8.101 |
 
-If you set up your own cluster, substitute the hostnames and IP addresses assigned to your servers.
+## Set up your cluster
+
+1) Install dependencies
+
+* [VirtualBox][virtualbox] 4.3.10 or greater.
+* [Vagrant][vagrant] 1.6 or greater.
+* [Git][git]
+
+2) Clone this project and get it running!
+
+    git clone https://github.com/Metaswitch/calico-coreos-vagrant-example.git
+    cd calico-coreos-vagrant-example
+
+3) Startup and SSH
+
+There are two "providers" for Vagrant with slightly different instructions.
+Follow one of the following two options:
+
+**VirtualBox Provider**
+
+The VirtualBox provider is the default Vagrant provider. Use this if you are unsure.
+
+    vagrant up
+
+**VMware Provider**
+
+The VMware provider is a commercial addon from Hashicorp that offers better stability and speed.
+If you use this provider follow these instructions.
+
+VMware Fusion:
+
+    vagrant up --provider vmware_fusion
+
+VMware Workstation:
+
+    vagrant up --provider vmware_workstation
+
+To connect to your servers
+* Linux/Mac OS X
+    * run `vagrant ssh <hostname>`
+* Windows
+    * Follow instructions from https://github.com/nickryand/vagrant-multi-putty
+    * run `vagrant putty <hostname>`
+
+4) Verify environment
+
+You should now have two CoreOS servers, each running etcd in a cluster. The servers are named core-01 and core-02.  By default these have IP addresses 172.17.8.101 and 172.17.8.102.
+
+At this point, it's worth checking that your servers can ping each other.
+
+From core-01
+
+    ping 172.17.8.102
+
+From core-02
+
+    ping 172.17.8.101
+
+If you see ping failures, the likely culprit is a problem with the VirtualBox network between the VMs.  You should check that each host is connected to the same virtual network adapter in VirtualBox and rebooting the host may also help.  Remember to shut down the VMs with `vagrant halt` before you reboot.
+
+You should also verify each host can access etcd.  The following will return an error if etcd is not available.
+
+    etcdctl ls /
 
 ## Starting Calico services<a id="calico-services"></a>
 
@@ -45,26 +101,24 @@ You should see output like this on each node
 
 ## Creating networked endpoints
 
-Now you can start any other containers that you want within the cluster, using normal docker commands. To get Calico to network them, first use the `docker network` command to create a network.
+This pre-release version of Docker introduces a new flag to `docker run` to network containers:  `--publish-service <service>.<network>.<driver>`.
 
-    docker network create --driver=calico net1
-    docker network create --driver=calico net2
-    docker network create --driver=calico net3
-
-When you create a container add `--net <network name>` to specify the docker network they should be on.
+ * `<service>` is the name by which you want the container to be known on the network.
+ * `<network>` is the name of the network to join.  Containers on different networks cannot communicate.
+ * `<driver>` is the name of the network driver to use.  Calico's driver is called `calico`.
 
 So let's go ahead and start a few of containers on each host.
 
 On ubuntu-01
 
-    docker run --net net1 --name workload-A -tid busybox
-    docker run --net net2 --name workload-B -tid busybox
-    docker run --net net1 --name workload-C -tid busybox
+    docker run --publish-service srvA.net1.calico --name workload-A -tid busybox
+    docker run --publish-service srvB.net2.calico --name workload-B -tid busybox
+    docker run --publish-service srvC.net1.calico --name workload-C -tid busybox
 
 On ubuntu-02
 
-    docker run --net net3 --name workload-D -tid busybox
-    docker run --net net1 --name workload-E -tid busybox
+    docker run --publish-service srvD.net3.calico --name workload-D -tid busybox
+    docker run --publish-service srvE.net1.calico --name workload-E -tid busybox
 
 Now, check that A can ping C and E. You can get a containers IP by running
 
@@ -79,6 +133,10 @@ Also check that A cannot ping B or D:
     docker exec workload-A ping -c 4 192.168.0.4
 
 By default, networks are configured so that their members can communicate with one another, but workloads in other networks cannot reach them.  B and D are in their own networks so shouldn't be able to ping anyone else.
+
+You list the networks using
+
+    docker network ls
 
 Finally, to clean everything up (without doing a `vagrant destroy`), you can run
 
@@ -112,20 +170,8 @@ On ubuntu-02
 
     sudo ./calicoctl node --ip=172.17.8.101 --ip6=fd80:24e2:f998:72d6::2 --node-image=calico/node:libnetwork
 
-Then, you can start containers with IPv6 connectivity by giving them an IPv6 address in `CALICO_IP`. By default, Calico is configured to use IPv6 addresses in the pool fd80:24e2:f998:72d6/64 (`calicoctl pool add` to change this).
+Then, containers you start will be assigned IPv6 addresses in addition to IPv4.
 
-On ubuntu-01
-
-    docker run -e CALICO_IP=fd80:24e2:f998:72d6::1:1 --name workload-F -tid phusion/baseimage:0.9.16
-    ./calicoctl profile add PROF_F_G
-    ./calicoctl profile PROF_F_G member add workload-F
-
-Note that we have used `phusion/baseimage:0.9.16` instead of `busybox`.  Busybox doesn't support IPv6 versions of network tools like ping.  Baseimage was chosen since it is the base for the Calico service images, and thus won't require an additional download, but of course you can use whatever image you'd like.
-
-One ubuntu-02
-
-    docker run -e CALICO_IP=fd80:24e2:f998:72d6::1:2 --name workload-G -tid phusion/baseimage:0.9.16
-    ./calicoctl profile PROF_F_G member add workload-G
-    docker exec workload-G ping6 -c 4 fd80:24e2:f998:72d6::1:1
+NOTE: the `busybox` container in the examples above does not support IPv6.  To check IPv6 connectivity between nodes we recommend you use the `ubuntu` container.
 
 [calico-ubuntu-vagrant]: https://github.com/Metaswitch/calico-ubuntu-vagrant-example
