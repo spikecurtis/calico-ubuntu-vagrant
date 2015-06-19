@@ -9,8 +9,8 @@ In this example, we will use the following server names and IP addresses.
 
 | hostname   | IP address   |
 |------------|--------------|
-| ubuntu-01  | 172.17.8.100 |
-| ubuntu-02  | 172.17.8.101 |
+| ubuntu-0  | 172.17.8.100 |
+| ubuntu-1  | 172.17.8.101 |
 
 ## Set up your cluster
 
@@ -58,17 +58,17 @@ To connect to your servers
 
 4) Verify environment
 
-You should now have two CoreOS servers, each running etcd in a cluster. The servers are named core-01 and core-02.  By default these have IP addresses 172.17.8.101 and 172.17.8.102.
+You should now have two Ubuntu servers, each running etcd in a cluster. The servers are named ubuntu-0 and ubuntu-1.
 
 At this point, it's worth checking that your servers can ping each other.
 
-From core-01
-
-    ping 172.17.8.102
-
-From core-02
+From ubuntu-0
 
     ping 172.17.8.101
+
+From ubuntu-1
+
+    ping 172.17.8.100
 
 If you see ping failures, the likely culprit is a problem with the VirtualBox network between the VMs.  You should check that each host is connected to the same virtual network adapter in VirtualBox and rebooting the host may also help.  Remember to shut down the VMs with `vagrant halt` before you reboot.
 
@@ -80,11 +80,11 @@ You should also verify each host can access etcd.  The following will return an 
 
 Once you have your cluster up and running, start calico on all the nodes
 
-On ubuntu-01
+On ubuntu-0
 
     sudo ./calicoctl node --ip=172.17.8.100 --node-image=calico/node:libnetwork
 
-On ubuntu-02
+On ubuntu-1
 
     sudo ./calicoctl node --ip=172.17.8.101 --node-image=calico/node:libnetwork
 
@@ -94,7 +94,7 @@ This will start a container. Check they are running
 
 You should see output like this on each node
 
-    vagrant@ubuntu-02:~$ docker ps -a
+    vagrant@ubuntu-1:~$ docker ps -a
     CONTAINER ID        IMAGE                    COMMAND                CREATED             STATUS              PORTS                                            NAMES
     39de206f7499        calico/node:libnetwork   "/sbin/my_init"        2 minutes ago       Up 2 minutes                                                         calico-node
     5e36a7c6b7f0        quay.io/coreos/etcd      "/etcd --name calico   30 minutes ago      Up 30 minutes       0.0.0.0:4001->4001/tcp, 0.0.0.0:7001->7001/tcp   quay.io-coreos-etcd
@@ -109,13 +109,13 @@ This pre-release version of Docker introduces a new flag to `docker run` to netw
 
 So let's go ahead and start a few of containers on each host.
 
-On ubuntu-01
+On ubuntu-0
 
     docker run --publish-service srvA.net1.calico --name workload-A -tid busybox
     docker run --publish-service srvB.net2.calico --name workload-B -tid busybox
     docker run --publish-service srvC.net1.calico --name workload-C -tid busybox
 
-On ubuntu-02
+On ubuntu-1
 
     docker run --publish-service srvD.net3.calico --name workload-D -tid busybox
     docker run --publish-service srvE.net1.calico --name workload-E -tid busybox
@@ -146,11 +146,11 @@ Finally, to clean everything up (without doing a `vagrant destroy`), you can run
 ## IPv6
 To connect your containers with IPv6, first make sure your Docker hosts each have an IPv6 address assigned.
 
-On ubuntu-01
+On ubuntu-0
 
     sudo ip addr add fd80:24e2:f998:72d6::1/112 dev eth1
 
-On ubuntu-02
+On ubuntu-1
 
     sudo ip addr add fd80:24e2:f998:72d6::2/112 dev eth1
 
@@ -162,11 +162,11 @@ On ubuntu-01
 
 Then restart your calico-node processes with the `--ip6` parameter to enable v6 routing.
 
-On ubuntu-01
+On ubuntu-0
 
     sudo ./calicoctl node --ip=172.17.8.100 --ip6=fd80:24e2:f998:72d6::1 --node-image=calico/node:libnetwork
 
-On ubuntu-02
+On ubuntu-1
 
     sudo ./calicoctl node --ip=172.17.8.101 --ip6=fd80:24e2:f998:72d6::2 --node-image=calico/node:libnetwork
 
