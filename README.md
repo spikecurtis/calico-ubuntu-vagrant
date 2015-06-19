@@ -175,3 +175,7 @@ Then, containers you start will be assigned IPv6 addresses in addition to IPv4.
 NOTE: the `busybox` container in the examples above does not support IPv6.  To check IPv6 connectivity between nodes we recommend you use the `ubuntu` container.
 
 [calico-ubuntu-vagrant]: https://github.com/Metaswitch/calico-ubuntu-vagrant-example
+[virtualbox]: https://www.virtualbox.org/
+[vagrant]: https://www.vagrantup.com/downloads.html
+[using-calico]: https://github.com/Metaswitch/calico-docker/blob/master/docs/GettingStarted.md
+[git]: http://git-scm.com/
