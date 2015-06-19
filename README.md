@@ -22,8 +22,8 @@ In this example, we will use the following server names and IP addresses.
 
 2) Clone this project and get it running!
 
-    git clone https://github.com/Metaswitch/calico-coreos-vagrant-example.git
-    cd calico-coreos-vagrant-example
+    git clone https://github.com/Metaswitch/calico-ubuntu-vagrant.git
+    cd calico-ubuntu-vagrant
 
 3) Startup and SSH
 
