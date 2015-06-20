@@ -1,4 +1,4 @@
-# Getting started with Calico on Docker
+# Calico Docker libnetwork prototype
 
 Calico provides IP connectivity between Docker containers on different hosts (as well as on the same host).
 
@@ -74,7 +74,7 @@ If you see ping failures, the likely culprit is a problem with the VirtualBox ne
 
 You should also verify each host can access etcd.  The following will return an error if etcd is not available.
 
-    etcdctl ls /
+    curl -L http://localhost:4001/version
 
 ## Starting Calico services<a id="calico-services"></a>
 
@@ -142,37 +142,6 @@ Finally, to clean everything up (without doing a `vagrant destroy`), you can run
 
     sudo ./calicoctl reset
 
-
-## IPv6
-To connect your containers with IPv6, first make sure your Docker hosts each have an IPv6 address assigned.
-
-On ubuntu-0
-
-    sudo ip addr add fd80:24e2:f998:72d6::1/112 dev eth1
-
-On ubuntu-1
-
-    sudo ip addr add fd80:24e2:f998:72d6::2/112 dev eth1
-
-Verify connectivity by pinging.
-
-On ubuntu-01
-
-    ping6 fd80:24e2:f998:72d6::2
-
-Then restart your calico-node processes with the `--ip6` parameter to enable v6 routing.
-
-On ubuntu-0
-
-    sudo ./calicoctl node --ip=172.17.8.100 --ip6=fd80:24e2:f998:72d6::1 --node-image=calico/node:libnetwork
-
-On ubuntu-1
-
-    sudo ./calicoctl node --ip=172.17.8.101 --ip6=fd80:24e2:f998:72d6::2 --node-image=calico/node:libnetwork
-
-Then, containers you start will be assigned IPv6 addresses in addition to IPv4.
-
-NOTE: the `busybox` container in the examples above does not support IPv6.  To check IPv6 connectivity between nodes we recommend you use the `ubuntu` container.
 
 [calico-ubuntu-vagrant]: https://github.com/Metaswitch/calico-ubuntu-vagrant-example
 [virtualbox]: https://www.virtualbox.org/
